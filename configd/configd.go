@@ -4,7 +4,7 @@ import (
 	"flag"
 	"net/http"
 
-	"github.com/vektra/services/config"
+	"github.com/vektra/datum"
 )
 
 var fAddr = flag.String("addr", ":80", "Port to listen on")
@@ -13,11 +13,11 @@ var fDir = flag.String("dir", "config", "Config dir to use")
 func main() {
 	flag.Parse()
 
-	tg := config.UUIDTokenGen()
-	bs := config.NewDiskStore(*fDir)
-	be := config.NewMsgpackBackend(bs)
+	tg := datum.UUIDTokenGen()
+	bs := datum.NewDiskStore(*fDir)
+	be := datum.NewMsgpackBackend(bs)
 
-	api := config.NewHTTPApi(tg, be)
+	api := datum.NewHTTPApi(tg, be)
 
 	err := http.ListenAndServe(*fAddr, api)
 	if err != nil {

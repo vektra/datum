@@ -1,4 +1,4 @@
-package config
+package datum
 
 import (
 	"testing"
@@ -27,13 +27,13 @@ func TestMsgpackBackend(t *testing.T) {
 
 		doc := map[string]interface{}{"blah": "foo"}
 
-		err := codec.NewEncoderBytes(&data, &codec.MsgpackHandle{}).Encode(doc)
+		err := codec.NewEncoderBytes(&data, msgpackHandle).Encode(doc)
 		require.NoError(t, err)
 
 		ms.On("Get", "aabbcc", "default").Return([]byte(nil), nil)
 		ms.On("Set", "aabbcc", "default", data).Return(nil)
 
-		err = mp.Set("aabbcc", "default", "blah", []byte("foo"))
+		err = mp.Set("aabbcc", "default", "blah", "foo")
 		require.NoError(t, err)
 	})
 
@@ -75,7 +75,7 @@ func TestMsgpackBackend(t *testing.T) {
 		ms.On("Get", "aabbcc", "default").Return([]byte(nil), nil)
 		ms.On("Set", "aabbcc", "default", data).Return(nil)
 
-		err = mp.Set("aabbcc", "default", "sub.blah", []byte("foo"))
+		err = mp.Set("aabbcc", "default", "sub.blah", "foo")
 		require.NoError(t, err)
 	})
 
@@ -157,7 +157,7 @@ func TestMsgpackBackend(t *testing.T) {
 
 		doc := map[string]interface{}{"blah": "foo"}
 
-		err := codec.NewEncoderBytes(&data, &codec.MsgpackHandle{}).Encode(doc)
+		err := codec.NewEncoderBytes(&data, msgpackHandle).Encode(doc)
 		require.NoError(t, err)
 
 		ms.On("Get", "aabbcc", "default").Return(data, nil)

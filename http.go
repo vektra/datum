@@ -1,4 +1,4 @@
-package config
+package datum
 
 import (
 	"encoding/json"
@@ -32,6 +32,7 @@ func NewHTTPApi(tg TokenGenerator, be Backend) *HTTPApi {
 	h := &HTTPApi{tg, be, pat.New()}
 
 	h.mux.Post("/create", http.HandlerFunc(h.create))
+	h.mux.Post("/create/onetime/:parent", http.HandlerFunc(h.createOntime))
 
 	h.mux.Put("/:token/~:space", http.HandlerFunc(h.put3))
 	h.mux.Put("/:token/~:space/", http.HandlerFunc(h.put3))
@@ -57,6 +58,20 @@ func NewHTTPApi(tg TokenGenerator, be Backend) *HTTPApi {
 
 func (h *HTTPApi) create(w http.ResponseWriter, req *http.Request) {
 	token := h.tg.NewToken()
+
+	fmt.Fprintf(w, "%s\n", token)
+}
+
+func (h *HTTPApi) createOntime(w http.ResponseWriter, req *http.Request) {
+	token := h.tg.NewToken()
+
+	parent := req.URL.Query().Get(":parent")
+
+	err := h.be.Set("_", "onetime", token, parent)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
 	fmt.Fprintf(w, "%s\n", token)
 }
@@ -109,6 +124,10 @@ func (h *HTTPApi) put4(w http.ResponseWriter, req *http.Request) {
 	h.put(headerToken, space, key, w, req)
 }
 
+func (h *HTTPApi) deleteOnetime(token string) {
+	h.be.Set("_", "onetime", token, nil)
+}
+
 func (h *HTTPApi) put(token, space, key string, w http.ResponseWriter, req *http.Request) {
 	var (
 		val interface{}
@@ -145,6 +164,39 @@ func (h *HTTPApi) put(token, space, key string, w http.ResponseWriter, req *http
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
+	}
+
+	if len(token) > 2 {
+		switch token[0:2] {
+		case "o-":
+			parent, err := h.be.Get("_", "onetime", token)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+
+			if str, ok := parent.(string); ok {
+				defer h.deleteOnetime(token)
+
+				token = str
+			} else {
+				http.Error(w, "corrupt view mapping", 500)
+				return
+			}
+		case "v-":
+			parent, err := h.be.Get("_", "views", token)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+
+			if str, ok := parent.(string); ok {
+				token = str
+			} else {
+				http.Error(w, "corrupt view mapping", 500)
+				return
+			}
+		}
 	}
 
 	err = h.be.Set(token, space, key, val)
@@ -294,6 +346,39 @@ func (h *HTTPApi) get(token, space, key string, w http.ResponseWriter, req *http
 	}
 
 	key = strings.Replace(key, "/", ".", -1)
+
+	if len(token) > 2 {
+		switch token[0:2] {
+		case "o-":
+			parent, err := h.be.Get("_", "onetime", token)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+
+			if str, ok := parent.(string); ok {
+				defer h.deleteOnetime(token)
+
+				token = str
+			} else {
+				http.Error(w, "corrupt view mapping", 500)
+				return
+			}
+		case "v-":
+			parent, err := h.be.Get("_", "views", token)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+
+			if str, ok := parent.(string); ok {
+				token = str
+			} else {
+				http.Error(w, "corrupt view mapping", 500)
+				return
+			}
+		}
+	}
 
 	val, err := h.be.Get(token, space, key)
 	if err != nil {

@@ -1,4 +1,4 @@
-package config
+package datum
 
 import (
 	"fmt"

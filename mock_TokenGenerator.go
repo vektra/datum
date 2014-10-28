@@ -1,4 +1,4 @@
-package config
+package datum
 
 import "github.com/stretchr/testify/mock"
 

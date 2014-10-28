@@ -1,4 +1,4 @@
-package config
+package datum
 
 import (
 	"net/http"
@@ -37,6 +37,26 @@ func TestHTTP(t *testing.T) {
 		token := "aabbcc"
 
 		tg.On("NewToken").Return(token)
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+		assert.Equal(t, token+"\n", w.Body.String())
+	})
+
+	n.It("can create a one-use token for another view", func() {
+		parent := "aabbcc"
+
+		req, err := http.NewRequest("POST", "/create/onetime/aabbcc", nil)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+
+		token := "ddeeff"
+
+		tg.On("NewToken").Return(token)
+
+		be.On("Set", "_", "onetime", token, parent).Return(nil)
 
 		h.ServeHTTP(w, req)
 
@@ -506,6 +526,93 @@ func TestHTTP(t *testing.T) {
 		req.Header.Set("Config-Token", "aabbcc")
 
 		be.On("Set", "aabbcc", "default", "blah.bar", nil).Return(nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+	})
+
+	n.It("can returns a space in TOML if requested", func() {
+		req, err := http.NewRequest("GET", "/aabbcc/~def.toml", nil)
+		require.NoError(t, err)
+
+		doc := map[string]interface{}{
+			"bar": "foo",
+		}
+
+		be.On("Get", "aabbcc", "def", "").Return(doc, nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+
+		expected := "bar = \"foo\"\n"
+
+		assert.Equal(t, expected, w.Body.String())
+	})
+
+	n.It("maps view tokens to their parent on get", func() {
+		req, err := http.NewRequest("GET", "/v-ddeeff/~def/bar", nil)
+		require.NoError(t, err)
+
+		be.On("Get", "_", "views", "v-ddeeff").Return("aabbcc", nil)
+
+		be.On("Get", "aabbcc", "def", "bar").Return("foo", nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+
+		assert.Equal(t, "foo\n", w.Body.String())
+	})
+
+	n.It("maps view tokens to their parent on set", func() {
+		req, err := http.NewRequest("PUT", "/v-ddeeff/~def/bar", strings.NewReader("foo"))
+		require.NoError(t, err)
+
+		be.On("Get", "_", "views", "v-ddeeff").Return("aabbcc", nil)
+
+		be.On("Set", "aabbcc", "def", "bar", "foo").Return(nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+	})
+
+	n.It("deletes one-time tokens on first get", func() {
+		req, err := http.NewRequest("GET", "/o-ddeeff/~def/bar", nil)
+		require.NoError(t, err)
+
+		be.On("Get", "_", "onetime", "o-ddeeff").Return("aabbcc", nil)
+		be.On("Set", "_", "onetime", "o-ddeeff", nil).Return(nil)
+
+		be.On("Get", "aabbcc", "def", "bar").Return("foo", nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+
+		assert.Equal(t, "foo\n", w.Body.String())
+	})
+
+	n.It("deletes one-time tokens on first set", func() {
+		req, err := http.NewRequest("PUT", "/o-ddeeff/~def/bar", strings.NewReader("foo"))
+		require.NoError(t, err)
+
+		be.On("Get", "_", "onetime", "o-ddeeff").Return("aabbcc", nil)
+		be.On("Set", "_", "onetime", "o-ddeeff", nil).Return(nil)
+
+		be.On("Set", "aabbcc", "def", "bar", "foo").Return(nil)
 
 		w := httptest.NewRecorder()
 

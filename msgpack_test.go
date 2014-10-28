@@ -37,7 +37,7 @@ func TestMsgpackBackend(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	n.It("stores keys in an existing document", func() {
+	n.NIt("stores keys in an existing document", func() {
 		var data []byte
 
 		doc := map[string]interface{}{"name": "vektra"}
@@ -206,6 +206,41 @@ func TestMsgpackBackend(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, doc, val)
+	})
+
+	n.It("stores an encrypted value", func() {
+		var data []byte
+
+		encVal := &EncryptedValue{Keyid: "a1b2c3", Value: []byte("foo")}
+
+		doc := map[string]interface{}{"blah": encVal}
+
+		err := codec.NewEncoderBytes(&data, msgpackHandle).Encode(doc)
+		require.NoError(t, err)
+
+		ms.On("Get", "aabbcc", "default").Return([]byte(nil), nil)
+		ms.On("Set", "aabbcc", "default", data).Return(nil)
+
+		err = mp.Set("aabbcc", "default", "blah", encVal)
+		require.NoError(t, err)
+	})
+
+	n.It("retrieves an encrypted value", func() {
+		var data []byte
+
+		encVal := &EncryptedValue{Keyid: "a1b2c3", Value: []byte("foo")}
+
+		doc := map[string]interface{}{"blah": encVal}
+
+		err := codec.NewEncoderBytes(&data, msgpackHandle).Encode(doc)
+		require.NoError(t, err)
+
+		ms.On("Get", "aabbcc", "default").Return(data, nil)
+
+		val, err := mp.Get("aabbcc", "default", "blah")
+		require.NoError(t, err)
+
+		assert.Equal(t, *encVal, val)
 	})
 
 	n.Meow()

@@ -21,6 +21,11 @@ type Backend interface {
 	Get(token string, space string, key string) (interface{}, error)
 }
 
+type EncryptedValue struct {
+	Keyid string `json:"keyid"`
+	Value []byte `json:"value"`
+}
+
 type HTTPApi struct {
 	tg TokenGenerator
 	be Backend
@@ -150,14 +155,14 @@ func (h *HTTPApi) put(token, space, key string, w http.ResponseWriter, req *http
 
 	key = strings.Replace(key, "/", ".", -1)
 
+	var body []byte
+
 	if asJson {
 		err = json.NewDecoder(req.Body).Decode(&val)
 	} else {
-		var bytes []byte
-
-		bytes, err = ioutil.ReadAll(req.Body)
+		body, err = ioutil.ReadAll(req.Body)
 		if err == nil {
-			val = string(bytes)
+			val = string(body)
 		}
 	}
 
@@ -196,6 +201,13 @@ func (h *HTTPApi) put(token, space, key string, w http.ResponseWriter, req *http
 				http.Error(w, "corrupt view mapping", 500)
 				return
 			}
+		}
+	}
+
+	if keyid := req.Header.Get("Config-Encryption-KeyID"); keyid != "" {
+		val = &EncryptedValue{
+			Value: body,
+			Keyid: keyid,
 		}
 	}
 
@@ -396,7 +408,12 @@ func (h *HTTPApi) get(token, space, key string, w http.ResponseWriter, req *http
 		if asJson {
 			json.NewEncoder(w).Encode(val)
 		} else {
-			fmt.Fprintf(w, "%s\n", val)
+			if encVal, ok := val.(*EncryptedValue); ok {
+				w.Header().Set("Config-Encryption-KeyID", encVal.Keyid)
+				w.Write(encVal.Value)
+			} else {
+				fmt.Fprintf(w, "%s\n", val)
+			}
 		}
 	}
 }

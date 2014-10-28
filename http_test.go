@@ -1,6 +1,8 @@
 package datum
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -619,6 +621,70 @@ func TestHTTP(t *testing.T) {
 		h.ServeHTTP(w, req)
 
 		assert.Equal(t, 200, w.Code)
+	})
+
+	n.It("records an encrypted value along with the keyid", func() {
+		req, err := http.NewRequest("PUT", "/aabbcc/~def/bar", strings.NewReader("foo"))
+		require.NoError(t, err)
+
+		req.Header.Set("Config-Encryption-KeyID", "a1b2c3")
+
+		encVal := &EncryptedValue{
+			Value: []byte("foo"),
+			Keyid: "a1b2c3",
+		}
+
+		be.On("Set", "aabbcc", "def", "bar", encVal).Return(nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+	})
+
+	n.It("returns an encrypted value along with the keyid", func() {
+		req, err := http.NewRequest("GET", "/aabbcc/~def/bar", nil)
+		require.NoError(t, err)
+
+		encVal := &EncryptedValue{
+			Value: []byte("foo"),
+			Keyid: "a1b2c3",
+		}
+
+		be.On("Get", "aabbcc", "def", "bar").Return(encVal, nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+		assert.Equal(t, "foo", w.Body.String())
+		assert.Equal(t, "a1b2c3", w.Header().Get("Config-Encryption-KeyID"))
+	})
+
+	n.It("returns an encrypted value as json", func() {
+		req, err := http.NewRequest("GET", "/aabbcc/~def/bar", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Accept", "application/json")
+
+		encVal := EncryptedValue{
+			Value: []byte("foo"),
+			Keyid: "a1b2c3",
+		}
+
+		be.On("Get", "aabbcc", "def", "bar").Return(encVal, nil)
+
+		w := httptest.NewRecorder()
+
+		h.ServeHTTP(w, req)
+
+		json := fmt.Sprintf(`{"keyid":"%s","value":"%s"}%s`,
+			"a1b2c3", base64.StdEncoding.EncodeToString(encVal.Value), "\n")
+
+		assert.Equal(t, 200, w.Code)
+		assert.Equal(t, json, w.Body.String())
 	})
 
 	n.Meow()

@@ -1,6 +1,8 @@
 package datum
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"reflect"
 	"strings"
@@ -26,7 +28,47 @@ var msgpackHandle = &codec.MsgpackHandle{}
 func init() {
 	msgpackHandle.RawToString = true
 	msgpackHandle.MapType = reflect.TypeOf(map[string]interface{}{})
+	msgpackHandle.WriteExt = true
+
+	msgpackHandle.SetExt(reflect.TypeOf(EncryptedValue{}), 0x47, &encryptedValExt{})
 }
+
+type encryptedValExt struct{}
+
+func (_ *encryptedValExt) WriteExt(v reflect.Value) []byte {
+	encVal := v.Interface().(EncryptedValue)
+
+	var buf bytes.Buffer
+
+	buf.WriteString(encVal.Keyid)
+	buf.WriteString("\n")
+	buf.Write(encVal.Value)
+
+	return buf.Bytes()
+}
+
+func (_ *encryptedValExt) ReadExt(v reflect.Value, b []byte) {
+	encVal := v.Interface().(EncryptedValue)
+
+	buffer := bufio.NewReader(bytes.NewReader(b))
+
+	keyid, _ := buffer.ReadString('\n')
+
+	val := make([]byte, len(b)-len(keyid))
+
+	buffer.Read(val)
+
+	encVal.Keyid = keyid[0 : len(keyid)-1]
+	encVal.Value = val
+
+	v.Set(reflect.ValueOf(encVal))
+}
+
+func (_ *encryptedValExt) ConvertExt(v reflect.Value) interface{} {
+	return v.Interface()
+}
+
+func (_ *encryptedValExt) UpdateExt(v reflect.Value, i interface{}) {}
 
 func (m *MsgpackBackend) findSub(
 	doc map[string]interface{},

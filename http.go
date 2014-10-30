@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/bmizerany/pat"
-	"github.com/pelletier/go-toml"
+	"github.com/vektra/go-toml"
 )
 import "net/http"
 

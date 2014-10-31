@@ -150,7 +150,7 @@ func (h *HTTPApi) put(token, space, key string, w http.ResponseWriter, req *http
 	asJson = req.Header.Get("Content-Type") == "application/json"
 
 	if ext != "" {
-		key = key[:len(key)-len(ext)-1]
+		key = key[:len(key)-len(ext)]
 	}
 
 	key = strings.Replace(key, "/", ".", -1)

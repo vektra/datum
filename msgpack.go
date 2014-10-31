@@ -120,13 +120,15 @@ func (m *MsgpackBackend) Set(token, space, key string, val interface{}) error {
 
 	var doc map[string]interface{}
 
-	if blob == nil {
-		doc = make(map[string]interface{})
-	} else {
+	if blob != nil {
 		err = codec.NewDecoderBytes(blob, msgpackHandle).Decode(&doc)
 		if err != nil {
 			return err
 		}
+	}
+
+	if doc == nil {
+		doc = make(map[string]interface{})
 	}
 
 	parts := strings.Split(key, ".")

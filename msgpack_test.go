@@ -152,6 +152,29 @@ func TestMsgpackBackend(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	n.It("handles a space losing all keys", func() {
+		var data []byte
+
+		doc := map[string]interface{}{}
+
+		err := codec.NewEncoderBytes(&data, msgpackHandle).Encode(doc)
+		require.NoError(t, err)
+
+		ms.On("Get", "aabbcc", "default").Return(data, nil)
+
+		var data2 []byte
+
+		doc["blah"] = "foo"
+
+		err = codec.NewEncoderBytes(&data2, msgpackHandle).Encode(doc)
+		require.NoError(t, err)
+
+		ms.On("Set", "aabbcc", "default", data2).Return(nil)
+
+		err = mp.Set("aabbcc", "default", "blah", "foo")
+		require.NoError(t, err)
+	})
+
 	n.It("gets values", func() {
 		var data []byte
 

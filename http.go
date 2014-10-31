@@ -396,6 +396,11 @@ func (h *HTTPApi) get(token, space, key string, w http.ResponseWriter, req *http
 		http.Error(w, err.Error(), 500)
 	}
 
+	if val == nil {
+		w.WriteHeader(204)
+		return
+	}
+
 	if encVal, ok := val.(EncryptedValue); ok {
 		w.Header().Set("Config-Encryption-KeyID", encVal.Keyid)
 	}

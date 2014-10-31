@@ -396,6 +396,10 @@ func (h *HTTPApi) get(token, space, key string, w http.ResponseWriter, req *http
 		http.Error(w, err.Error(), 500)
 	}
 
+	if encVal, ok := val.(EncryptedValue); ok {
+		w.Header().Set("Config-Encryption-KeyID", encVal.Keyid)
+	}
+
 	if mapVal, ok := val.(map[string]interface{}); ok {
 		if asToml {
 			tree := toml.TreeFromMap(mapVal)
@@ -407,8 +411,7 @@ func (h *HTTPApi) get(token, space, key string, w http.ResponseWriter, req *http
 		if asJson {
 			json.NewEncoder(w).Encode(val)
 		} else {
-			if encVal, ok := val.(*EncryptedValue); ok {
-				w.Header().Set("Config-Encryption-KeyID", encVal.Keyid)
+			if encVal, ok := val.(EncryptedValue); ok {
 				w.Write(encVal.Value)
 			} else {
 				fmt.Fprintf(w, "%s\n", val)

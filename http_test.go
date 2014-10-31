@@ -647,7 +647,7 @@ func TestHTTP(t *testing.T) {
 		req, err := http.NewRequest("GET", "/aabbcc/~def/bar", nil)
 		require.NoError(t, err)
 
-		encVal := &EncryptedValue{
+		encVal := EncryptedValue{
 			Value: []byte("foo"),
 			Keyid: "a1b2c3",
 		}

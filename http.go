@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"net/http"
+
 	"github.com/bmizerany/pat"
 	"github.com/vektra/go-toml"
 )
-import "net/http"
 
 type TokenGenerator interface {
 	NewToken() string
@@ -315,8 +316,6 @@ func (h *HTTPApi) get3(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *HTTPApi) get0(w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("get0!\n")
-
 	h.get("", "default", req.URL.Path, w, req)
 }
 
